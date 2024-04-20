@@ -24,9 +24,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
-    <img src="src/main/resources/icons/ytmusic.png" alt="Logo" width="80" height="80">
-  </a>
+  <iframe width="768" height="480" src="https://www.youtube.com/embed/5SbL6PQUpG8" title="YouTube Music on Virtual DJ Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
   <h3 align="center">YouTube Music for VirtualDJ</h3>
 
