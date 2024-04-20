@@ -24,8 +24,10 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  [![Demo video](http://img.youtube.com/vi/5SbL6PQUpG8/0.jpg)](http://www.youtube.com/watch?v=5SbL6PQUpG8 "YouTube Music on Virtual DJ Demo")
-
+    <a href="https://github.com/Scelibre/YT-Music-VDJ">
+    <img src="src/main/resources/icons/ytmusic.png" alt="Logo" width="80" height="80">
+  </a>
+  
   <h3 align="center">YouTube Music for VirtualDJ</h3>
 
   <p align="center">
@@ -68,7 +70,7 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-<img src="images/screenshot.png" alt="Screen shot">
+[![Demo video](http://img.youtube.com/vi/5SbL6PQUpG8/0.jpg)](http://www.youtube.com/watch?v=5SbL6PQUpG8 "YouTube Music on Virtual DJ Demo")
 
 Just a software to download and drag and drop directly from YouTube Music.
 
