@@ -18,11 +18,6 @@
 *** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![Issues][issues-shield]][issues-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
 
 
 
@@ -106,9 +101,13 @@ Let's build it
 
 ### Prerequisites
 
+FFMPEG somewhere in the PATH or in the same directory of the executable (jar) : https://ffmpeg.org/download.html
+
 Java 1.8, eclipse, maven
 
 ### Installation
+
+0. Download FFMPEG and put it in the PATH or in the same directory of the executable (jar) : https://ffmpeg.org/download.html
 
 Just download the last release : https://github.com/Scelibre/YT-Music-VDJ/releases/tag/PRE
 
