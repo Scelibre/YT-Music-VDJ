@@ -24,7 +24,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <iframe width="768" height="480" src="https://www.youtube.com/embed/5SbL6PQUpG8" title="YouTube Music on Virtual DJ Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  [![Demo video](http://img.youtube.com/vi/5SbL6PQUpG8/0.jpg)](http://www.youtube.com/watch?v=5SbL6PQUpG8 "YouTube Music on Virtual DJ Demo")
 
   <h3 align="center">YouTube Music for VirtualDJ</h3>
 
