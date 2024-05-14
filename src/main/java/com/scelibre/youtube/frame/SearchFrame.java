@@ -10,27 +10,33 @@ import java.util.List;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 
 import com.scelibre.youtube.MusicVDJ;
 import com.scelibre.youtube.table.TrackTable;
 import com.scelibre.youtube.util.Icons;
+import com.scelibre.youtube.util.MusicSearch;
+import com.scelibre.youtube.util.SearchCallback;
 import com.scelibre.youtube.util.Track;
 import com.scelibre.youtube.util.VDJColor;
 
-public class SearchFrame extends JFrame {
+public class SearchFrame extends JFrame implements SearchCallback {
 	private static final long serialVersionUID = 6066179402787898753L;
 
 	private final MusicVDJ core;
 	private final TrackTable table;
+	private final JLabel message;
+	private MusicSearch searchThread = null;
 	
 	public SearchFrame(MusicVDJ core, boolean visible) {
 		super("YouTube Music Search");
 		
 		this.core = core;
-		
+				
 		Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
 		
 		this.setIconImage(Icons.YTMUSIC.getImage());
@@ -55,14 +61,18 @@ public class SearchFrame extends JFrame {
 		input.addActionListener(new AbstractAction() {
 			private static final long serialVersionUID = -5034262671097950481L;
 
+			@SuppressWarnings("deprecation")
 			public void actionPerformed(ActionEvent e) {
-				SearchFrame.this.core.search(input.getText());
+				SearchFrame self = SearchFrame.this;
+				if (self.searchThread != null && self.searchThread.isAlive())
+					self.searchThread.stop();
+				self.clearTracks();
+				self.displayMessage("Chargement en cours...");
+				self.searchThread = new MusicSearch(self.core, self, input.getText());
 			}
 		});
 		
 		rootPanel.add(input, BorderLayout.PAGE_START);
-		
-		this.add(rootPanel);
 		
 		JPanel tablePanel = new JPanel(new BorderLayout());
 		tablePanel.setBackground(VDJColor.ROOT_BACKGROUND);
@@ -70,20 +80,63 @@ public class SearchFrame extends JFrame {
 		
 		this.table = new TrackTable(this.core);
 		
-		JScrollPane pane = new JScrollPane(this.table);
-		pane.getViewport().setBackground(VDJColor.PANEL_BACKGROUND);
-		pane.setBorder(BorderFactory.createEmptyBorder());
+		this.message = new JLabel("", SwingConstants.CENTER);
+		this.message.setForeground(VDJColor.BORDER);
 		
-		tablePanel.add(pane);
+		this.table.add(this.message, BorderLayout.CENTER);
+		this.table.setFillsViewportHeight(true);
 		
+		JScrollPane scrollPane = new JScrollPane(this.table);
+		scrollPane.getViewport().setBackground(VDJColor.PANEL_BACKGROUND);
+		scrollPane.setBorder(BorderFactory.createEmptyBorder());
+		
+		
+		tablePanel.add(scrollPane);
 		rootPanel.add(tablePanel);
-				
-		this.display(new ArrayList<Track>());
+		
+		this.add(rootPanel);
+		
+	    //this.getLayeredPane().add(messageLabel, new Integer(1));
+		
+		this.onSuccess(null); // Reinit
 		
 		this.setVisible(visible);
 	}
-
-	public void display(List<Track> tracks) {
+	
+	private void displayMessage(String message) {
+		this.message.setText(message == null ? "" : message);
+	}
+	
+	private void clearMessage() {
+		this.displayMessage(null);
+	}
+	
+	private void displayTracks(List<Track> tracks) {
+		if (tracks == null) {
+			this.clearTracks();
+			return;
+		}
 		this.table.display(tracks);
+	}
+	
+	private void clearTracks() {
+		this.displayTracks(new ArrayList<Track>());
+	}
+
+	@Override
+	public void onSuccess(List<Track> tracks) {
+		if (tracks == null || tracks.isEmpty()) {
+			this.clearTracks();
+			this.displayMessage("Pas d'éléments à afficher");
+		} else {
+			this.clearMessage();
+			this.displayTracks(tracks);
+		}
+	}
+
+	@Override
+	public void onError(Exception exception) {
+		exception.printStackTrace();
+		this.displayMessage("Erreur : " + exception.getMessage());
 	}
 }

@@ -39,8 +39,8 @@ public class TrackTableModel extends DefaultTableModel {
 	public Icon getIcon(Track track) {
 		if (track.isExists()) {
 			return Icons.DOWNLOADED;
-		} else if (track.isDownloading()) {
-			return Icons.DOWNLOADING;
+		} else if (track.getMusicDownload() != null) {
+			return track.getMusicDownload().getDownloadState().getIcon();
 		} else {
 			return Icons.EMPTY;
 		}

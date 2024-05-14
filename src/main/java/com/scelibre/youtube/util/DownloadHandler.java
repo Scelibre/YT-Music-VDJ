@@ -1,6 +1,7 @@
 package com.scelibre.youtube.util;
 
+import com.scelibre.youtube.util.MusicDownload.State;
+
 public interface DownloadHandler {
-	public abstract void error(Track track, DownloadError error);
-	public abstract void success(Track track);
+	public abstract void stateUpdated(Track track, State state);
 }

@@ -4,7 +4,6 @@ import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.io.File;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import javax.swing.SwingUtilities;
@@ -13,7 +12,6 @@ import com.scelibre.youtube.frame.ButtonFrame;
 import com.scelibre.youtube.frame.SearchFrame;
 import com.scelibre.youtube.util.DownloadHandler;
 import com.scelibre.youtube.util.MusicDownload;
-import com.scelibre.youtube.util.MusicSearch;
 import com.scelibre.youtube.util.Track;
 
 import net.sourceforge.argparse4j.ArgumentParsers;
@@ -69,8 +67,6 @@ public class MusicVDJ implements Runnable {
 	private final int x, y;
 	private final boolean standalone;
 	private final Map<String, MusicDownload> downloads;
-	private MusicSearch searchThread = null;
-	private SearchFrame search;
 
 	public MusicVDJ(Integer x, Integer y, boolean standalone) {
 		this.downloads = new HashMap<String, MusicDownload>();
@@ -80,27 +76,19 @@ public class MusicVDJ implements Runnable {
 	}
 
 	public void run() {
-		this.search = new SearchFrame(this, this.standalone);
+		SearchFrame search = new SearchFrame(this, this.standalone);
 		if (!this.standalone)
-			new ButtonFrame(this.search, this.x, this.y);
+			new ButtonFrame(search, this.x, this.y);
 	}
 
-	@SuppressWarnings("deprecation")
-	public void search(String text) {
-		if (this.searchThread != null && this.searchThread.isAlive())
-			this.searchThread.stop();
-		this.searchThread = new MusicSearch(this, text);
+	public MusicDownload download(Track track, DownloadHandler handler) {
+		MusicDownload download = new MusicDownload(track, handler);
+		this.downloads.put(track.getUrl(), download);
+		return download;
 	}
 
-	public boolean download(Track track, DownloadHandler handler) {
-		if (this.downloads.containsKey(track.getUrl()) || track.isExists())
-			return false;
-		this.downloads.put(track.getUrl(), new MusicDownload(track, handler));
-		return true;
-	}
-
-	public boolean isDownloading(String url) {
-		return this.downloads.containsKey(url);
+	public MusicDownload getMusicDownload(String url) {
+		return this.downloads.containsKey(url) ? this.downloads.get(url) : null;
 	}
 
 	public File isExists(String url) {
@@ -108,9 +96,5 @@ public class MusicVDJ implements Runnable {
 		if (file.exists() && file.isDirectory())
 			return file.listFiles()[0];
 		return null;
-	}
-
-	public void display(List<Track> tracks) {
-		this.search.display(tracks);
 	}
 }

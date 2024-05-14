@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -15,14 +16,17 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+
 import com.scelibre.youtube.MusicVDJ;
 
 public class MusicSearch extends Thread {
 	private final MusicVDJ core;
+	private final SearchCallback callback;
 	private final String text;
 	
-	public MusicSearch(MusicVDJ core, String text) {
+	public MusicSearch(MusicVDJ core, SearchCallback callback, String text) {
 		this.core = core;
+		this.callback = callback;
 		this.text = text;
 		this.start();
 	}
@@ -31,9 +35,12 @@ public class MusicSearch extends Thread {
 		List<Track> tracks;
 		try {
 			tracks = getYoutubeData(this.text);
-			this.core.display(tracks);
-		} catch (IOException e) {
-			e.printStackTrace();
+			this.callback.onSuccess(tracks);
+			sleep(0);
+		} catch (InterruptedException ingnore) {
+			// Ignore
+		} catch (Exception exception) {
+			this.callback.onError(exception);
 		}
 	}
 	
@@ -83,11 +90,10 @@ public class MusicSearch extends Thread {
 		connection.setRequestProperty("Upgrade-Insecure-Requests", upgradeInsecureRequests);
 
 		StringBuilder response = new StringBuilder();
-		try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream(), Charset.forName("UTF-8")))) {
 			String inputLine;
-			while ((inputLine = in.readLine()) != null) {
+			while ((inputLine = in.readLine()) != null)
 				response.append(inputLine);
-			}
 		}
 
 		Pattern pattern = Pattern.compile("data: '([^']+)'");
@@ -108,16 +114,22 @@ public class MusicSearch extends Thread {
 		for (JsonElement item : sectionList) {
 			JsonObject itemObj = item.getAsJsonObject();
 			if (itemObj.has("musicCardShelfRenderer")) {
-				JsonObject temp = itemObj.getAsJsonObject("musicCardShelfRenderer");
-				String title = temp.getAsJsonObject("title").getAsJsonArray("runs").get(0).getAsJsonObject().get("text")
-						.getAsString();
-				String thumb = getThumb(temp);
-				String[] tags = getTags(temp.getAsJsonObject("subtitle"));
-				if (tags[2] != null) {
-					String url = temp.getAsJsonObject("title").getAsJsonArray("runs").get(0).getAsJsonObject()
-							.getAsJsonObject("navigationEndpoint").getAsJsonObject("watchEndpoint").get("videoId")
+				try {
+					JsonObject temp = itemObj.getAsJsonObject("musicCardShelfRenderer");
+					String title = temp.getAsJsonObject("title").getAsJsonArray("runs").get(0).getAsJsonObject().get("text")
 							.getAsString();
-					dataList.add(new Track(url, title, thumb, tags[0], tags[1], tags[2], this.core.isExists(url), this.core.isDownloading(url)));
+					String thumb = this.getThumb(temp);
+					String[] tags = this.getTags(temp.getAsJsonObject("subtitle"));
+					if (tags[2] != null) {
+						String url = temp.getAsJsonObject("title").getAsJsonArray("runs").get(0).getAsJsonObject()
+								.getAsJsonObject("navigationEndpoint").getAsJsonObject("watchEndpoint").get("videoId")
+								.getAsString();
+						
+						MusicDownload download = this.core.getMusicDownload(url);
+						dataList.add((download == null) ? new Track(url, title, thumb, tags[0], tags[1], tags[2], this.core.isExists(url)) : download.getTrack());
+					}
+				} catch (Exception exception) {
+					// Ignore
 				}
 			} else if (itemObj.has("musicShelfRenderer")) {
 				JsonObject temp = itemObj.getAsJsonObject("musicShelfRenderer");
@@ -129,40 +141,46 @@ public class MusicSearch extends Thread {
 					continue;
 				
 				for (JsonElement subItem : temp.getAsJsonArray("contents")) {
-					JsonObject subItemObj = subItem.getAsJsonObject();
-					String url = null;
-					String title = null;
-					String thumb = null;
-					String artist = null;
-					String album = null;
-					String time = null;
-					if (!subItemObj.has("musicResponsiveListItemRenderer"))
-						continue;
-
-					JsonObject subItemTemp = subItemObj.getAsJsonObject("musicResponsiveListItemRenderer");
-					thumb = getThumb(subItemTemp);
-								
-					for (JsonElement tagElement : subItemTemp.getAsJsonArray("flexColumns")) {
-						JsonObject tag = tagElement.getAsJsonObject();
-						if (!tag.has("musicResponsiveListItemFlexColumnRenderer"))
+					try {
+						JsonObject subItemObj = subItem.getAsJsonObject();
+						String url = null;
+						String title = null;
+						String thumb = null;
+						String artist = null;
+						String album = null;
+						String time = null;
+						if (!subItemObj.has("musicResponsiveListItemRenderer"))
 							continue;
-						JsonObject tagTemp = tag.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer");
-						if (tagTemp.getAsJsonObject("text").getAsJsonArray("runs").size() > 1) {
-							String[] tempTags = getTags(tagTemp.getAsJsonObject("text"));
-							artist = tempTags[0];
-							album = tempTags[1];
-							time = tempTags[2];
-						} else  {
-							JsonObject runs = tagTemp.getAsJsonObject("text").getAsJsonArray("runs").get(0).getAsJsonObject();
-							if (runs.has("navigationEndpoint")) {
-								title = runs.get("text").getAsString();
-								url = runs.getAsJsonObject("navigationEndpoint").getAsJsonObject("watchEndpoint")
-										.get("videoId").getAsString();
+	
+						JsonObject subItemTemp = subItemObj.getAsJsonObject("musicResponsiveListItemRenderer");
+						thumb = this.getThumb(subItemTemp);
+									
+						for (JsonElement tagElement : subItemTemp.getAsJsonArray("flexColumns")) {
+							JsonObject tag = tagElement.getAsJsonObject();
+							if (!tag.has("musicResponsiveListItemFlexColumnRenderer"))
+								continue;
+							JsonObject tagTemp = tag.getAsJsonObject("musicResponsiveListItemFlexColumnRenderer");
+							if (tagTemp.getAsJsonObject("text").getAsJsonArray("runs").size() > 1) {
+								String[] tempTags = this.getTags(tagTemp.getAsJsonObject("text"));
+								artist = tempTags[0];
+								album = tempTags[1];
+								time = tempTags[2];
+							} else  {
+								JsonObject runs = tagTemp.getAsJsonObject("text").getAsJsonArray("runs").get(0).getAsJsonObject();
+								if (runs.has("navigationEndpoint")) {
+									title = runs.get("text").getAsString();
+									url = runs.getAsJsonObject("navigationEndpoint").getAsJsonObject("watchEndpoint")
+											.get("videoId").getAsString();
+								}
 							}
 						}
+						if (time != null && url != null) {
+							MusicDownload download = this.core.getMusicDownload(url);
+							dataList.add((download == null) ? new Track(url, title, thumb, artist, album, time, this.core.isExists(url)) : download.getTrack());
+						}
+					} catch (Exception exception) {
+						// Ignore
 					}
-					if (time != null) 
-						dataList.add(new Track(url, title, thumb, artist, album, time, this.core.isExists(url), this.core.isDownloading(url)));
 				}
 			}
 		}
@@ -170,7 +188,7 @@ public class MusicSearch extends Thread {
 		return dataList;
 	}
 
-	private static String getThumb(JsonObject data) {
+	private String getThumb(JsonObject data) {
 		for (JsonElement item : data.getAsJsonObject("thumbnail").getAsJsonObject("musicThumbnailRenderer")
 				.getAsJsonObject("thumbnail").getAsJsonArray("thumbnails")) {
 			JsonObject thumbnail = item.getAsJsonObject();
@@ -181,7 +199,7 @@ public class MusicSearch extends Thread {
 		return null;
 	}
 
-	private static String[] getTags(JsonObject data) {
+	private String[] getTags(JsonObject data) {
 		String artist = null;
 		String album = null;
 		String time = null;

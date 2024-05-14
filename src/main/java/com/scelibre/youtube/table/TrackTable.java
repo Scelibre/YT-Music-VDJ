@@ -1,5 +1,6 @@
 package com.scelibre.youtube.table;
 
+import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.dnd.DnDConstants;
@@ -19,19 +20,19 @@ import java.awt.event.MouseEvent;
 import java.util.List;
 
 import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableCellRenderer;
 
 import com.scelibre.youtube.MusicVDJ;
-import com.scelibre.youtube.util.DownloadError;
 import com.scelibre.youtube.util.DownloadHandler;
 import com.scelibre.youtube.util.FileSelection;
 import com.scelibre.youtube.util.Icons;
+import com.scelibre.youtube.util.MusicDownload.State;
 import com.scelibre.youtube.util.Track;
 import com.scelibre.youtube.util.VDJColor;
 
-public class TrackTable extends JTable
-		implements DropTargetListener, DragSourceListener, DragGestureListener, DownloadHandler {
+public class TrackTable extends JTable implements DropTargetListener, DragSourceListener, DragGestureListener, DownloadHandler {
 	private static final long serialVersionUID = -42013453939943101L;
 
 	private final TrackTableModel model;
@@ -42,6 +43,8 @@ public class TrackTable extends JTable
 
 		this.model = (TrackTableModel) this.getModel();
 
+		this.setLayout(new BorderLayout());
+		this.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		this.setBackground(VDJColor.PANEL_BACKGROUND);
 		this.setForeground(VDJColor.TEXT);
 		this.getTableHeader().setBackground(VDJColor.ROOT_BACKGROUND);
@@ -71,23 +74,14 @@ public class TrackTable extends JTable
 
 		this.getTableHeader().setDefaultRenderer(renderer);
 	}
-
-	public void error(Track track, DownloadError error) {
+	
+	@Override
+	public void stateUpdated(Track track, State state) {
 		final int row = this.model.getIndex(track);
 		if (row != -1)
 			SwingUtilities.invokeLater(new Runnable() {
 				public void run() {
-					TrackTable.this.model.setValueAt(Icons.ERROR, row, 0);
-				}
-			});
-	}
-
-	public void success(Track track) {
-		final int row = this.model.getIndex(track);
-		if (row != -1)
-			SwingUtilities.invokeLater(new Runnable() {
-				public void run() {
-					TrackTable.this.model.setValueAt(Icons.DOWNLOADED, row, 0);
+					TrackTable.this.model.setValueAt(state.getIcon(), row, 0);
 				}
 			});
 	}

@@ -7,8 +7,12 @@ import java.io.InputStream;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.URL;
 import java.nio.file.Files;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.swing.Icon;
 
 import com.github.kiulian.downloader.YoutubeDownloader;
 import com.github.kiulian.downloader.downloader.request.RequestVideoFileDownload;
@@ -23,11 +27,15 @@ import com.scelibre.youtube.MusicVDJ;
 public class MusicDownload extends Thread {
 	private final Track track;
 	private final DownloadHandler handler;
+	private final Logger logger;
+	private State state = null;
 
 	public MusicDownload(Track track, DownloadHandler handler) {
 		this.track = track;
 		this.handler = handler;
-		System.out.println("Downloading " + this.track.getTitle());
+		this.logger = Logger.getLogger(this.track.getUrl());
+		this.logger.log(Level.INFO, "Downloading " + this.track.getTitle());
+		this.setState(State.DOWNLOADING);
 		this.start();
 	}
 
@@ -53,27 +61,9 @@ public class MusicDownload extends Thread {
 
 			Response<File> downloadResponse = downloader.downloadVideoFile(downloadRequest);
 			File data = downloadResponse.data();
-
-			System.out.println("Downloading " + this.track.getTitle() + " complete, stating convertion");
 			
-			File file = new File(temp, this.track.getUrl() + ".mp3");						
+			this.logger.log(Level.INFO, "Downloading thumb...");
 			
-			ProcessBuilder pb = new ProcessBuilder("ffmpeg", "-y", "-i", "\"" + data.getAbsolutePath() + "\"", "\"" + file.getAbsolutePath() + "\"");
-			pb.redirectOutput(Redirect.INHERIT);
-			pb.redirectError(Redirect.INHERIT);
-			Process process = pb.start();
-						
-			/*BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-			String line;
-			while ((line = reader.readLine()) != null)
-			    System.out.println(line);*/
-			process.waitFor();
-
-
-			System.out.println("Conversion finished, downloading thumb");
-			
-			data.delete();
-
 			URL url = new URL(this.track.getThumb());
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			InputStream is = null;
@@ -86,15 +76,29 @@ public class MusicDownload extends Thread {
 					baos.write(byteChunk, 0, n);
 				}
 			} catch (IOException e) {
-				System.err.printf("Failed while reading bytes from %s: %s", url.toExternalForm(), e.getMessage());
-				e.printStackTrace();
+				baos = null;
 			} finally {
 				if (is != null) {
 					is.close();
 				}
 			}
 			
-			System.out.println("Thumb downloaded, making the MP3...");
+			this.logger.log(baos == null ? Level.WARNING : Level.INFO,
+					"Thumb " + (baos == null ? "NOT " : "") + "downloaded, stating convertion...");
+			this.setState(State.CONVERTING);
+			
+			File file = new File(temp, this.track.getUrl() + ".mp3");						
+			
+			ProcessBuilder pb = new ProcessBuilder("ffmpeg", "-y", "-i", "\"" + data.getAbsolutePath() + "\"", "\"" + file.getAbsolutePath() + "\"");
+			pb.redirectOutput(Redirect.INHERIT);
+			pb.redirectError(Redirect.INHERIT);
+			Process process = pb.start();
+						
+			process.waitFor();
+
+			this.logger.log(Level.INFO, "Conversion finished, making the mp3...");
+			
+			data.delete();
 
 			Mp3File mp3file = new Mp3File(file);
 			ID3v2 id3v2Tag;
@@ -125,14 +129,44 @@ public class MusicDownload extends Thread {
 			
 			temp.delete();
 			
-			System.out.println("Song ready to use");
+			this.logger.log(Level.INFO, "Song " + this.track.getTitle() + "ready to use");
 			
 			this.track.setFile(mp3);
-			this.handler.success(this.track);
+			
+			this.setState(State.FINISHED);
 		} catch (Exception exception) {
-			exception.printStackTrace();
-			System.err.println("Error while downloading " + this.track.getTitle());
-			this.handler.error(this.track, DownloadError.ERROR);
+			this.logger.log(Level.SEVERE, "Error while downloading " + this.track.getTitle(), exception);
+			this.setState(State.ERROR);
+		}
+	}
+	
+	public final Track getTrack() {
+		return this.track;
+	}
+	
+	private void setState(State state) {
+		this.state = state;
+		this.handler.stateUpdated(this.track, state);
+	}
+	
+	public final State getDownloadState() {
+		return this.state;
+	}
+	
+	public enum State {
+		DOWNLOADING	(Icons.DOWNLOADING),
+		CONVERTING	(Icons.CONVERTING),
+		FINISHED	(Icons.DOWNLOADED),
+		ERROR		(Icons.ERROR);
+
+		private final Icon icon;
+		
+		private State(Icon icon) {
+			this.icon = icon;
+		}
+		
+		public final Icon getIcon() {
+			return this.icon;
 		}
 	}
 }
